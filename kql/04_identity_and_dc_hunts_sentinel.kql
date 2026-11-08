@@ -1,0 +1,84 @@
+// ============================================================================================
+// ARTEX / agentic-intrusion hunts - Microsoft Sentinel (raw Windows events, Entra, AWS)
+// For shops without Defender for Identity. TLP:CLEAR.
+// ============================================================================================
+
+
+// --- S1. Kerberoasting from raw 4769: one account, many SPNs, RC4 tickets --------------------
+SecurityEvent
+| where TimeGenerated > ago(7d)
+| where EventID == 4769
+| extend EncType = extract(@"TicketEncryptionType"">(0x[0-9a-fA-F]+)<", 1, EventData),
+         Svc     = extract(@"ServiceName"">([^<]+)<", 1, EventData),
+         Client  = extract(@"TargetUserName"">([^<]+)<", 1, EventData),
+         SrcIP   = extract(@"IpAddress"">(?:::ffff:)?([^<]+)<", 1, EventData)
+| where EncType in ("0x17", "0x18")          // RC4 / RC4-EXP
+| where Svc !endswith "$" and Svc !~ "krbtgt"
+| summarize SPNs = dcount(Svc), SvcList = make_set(Svc, 25), Start = min(TimeGenerated), End = max(TimeGenerated)
+            by Client, SrcIP, bin(TimeGenerated, 10m)
+| where SPNs >= 5
+| order by SPNs desc
+
+
+// --- S2. DCSync from raw 4662: replication rights used by a non-machine account --------------
+let ReplGUIDs = dynamic([
+    "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2",   // DS-Replication-Get-Changes
+    "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2",   // DS-Replication-Get-Changes-All
+    "89e95b76-444d-4c62-991a-0facbeda640c"]); // DS-Replication-Get-Changes-In-Filtered-Set
+SecurityEvent
+| where TimeGenerated > ago(30d)
+| where EventID == 4662
+| where Properties has_any (ReplGUIDs)
+| where SubjectUserName !endswith "$"
+| where SubjectUserName !startswith "MSOL_"            // Entra Connect sync account; verify yours
+| project TimeGenerated, Computer, SubjectDomainName, SubjectUserName, SubjectLogonId, Properties
+
+
+// --- S3. Password spray at machine speed (Storm-0940 pattern: ~2,900 failures/min) -----------
+SigninLogs
+| where TimeGenerated > ago(7d)
+| where ResultType in ("50126", "50053", "50055", "50057")   // bad pwd, locked, expired, disabled
+| summarize Failures = count(), Users = dcount(UserPrincipalName), UAs = make_set(UserAgent, 5)
+            by IPAddress, bin(TimeGenerated, 5m)
+| where Users >= 10 or Failures >= 100
+| order by Failures desc
+
+
+// --- S4. Successful sign-in from an IP that was just spraying (the one that matters) ---------
+let Sprayers = SigninLogs
+    | where TimeGenerated > ago(7d)
+    | where ResultType in ("50126", "50053")
+    | summarize Users = dcount(UserPrincipalName) by IPAddress
+    | where Users >= 10
+    | project IPAddress;
+union SigninLogs, AADNonInteractiveUserSignInLogs
+| where TimeGenerated > ago(7d)
+| where ResultType == "0"
+| where IPAddress in (Sprayers)
+| project TimeGenerated, UserPrincipalName, IPAddress, AppDisplayName, UserAgent, ConditionalAccessStatus
+
+
+// --- S5. Service principals: new credential added, then used from an unfamiliar IP ----------
+// Storm-0940 added credentials to existing OAuth apps for persistence. Microsoft's own blog has
+// the ConnectWise-specific app-ID queries; this is the generic version.
+let CredAdds = AuditLogs
+    | where TimeGenerated > ago(30d)
+    | where OperationName has_any ("Add service principal credentials", "Update application – Certificates and secrets management")
+    | extend AppId = tostring(TargetResources[0].id), Actor = tostring(InitiatedBy.app.displayName)
+    | project CredAddTime = TimeGenerated, AppId, OperationName, Actor;
+AADServicePrincipalSignInLogs
+| where TimeGenerated > ago(30d)
+| where ResultType == "0"
+| join kind=inner CredAdds on $left.ServicePrincipalId == $right.AppId
+| where TimeGenerated between (CredAddTime .. (CredAddTime + 7d))
+| summarize IPs = make_set(IPAddress, 10), SignIns = count(), FirstUse = min(TimeGenerated)
+            by ServicePrincipalName, ServicePrincipalId, CredAddTime, Actor
+
+
+// --- S6. AWS: ARTEX markers published by CrowdStrike (artx-prefixed roles, art18- SSM comments)
+AWSCloudTrail
+| where TimeGenerated > ago(30d)
+| where (EventName in ("CreateRole", "AssumeRole", "AttachRolePolicy", "PutRolePolicy") and RequestParameters has "artx")
+     or (EventName == "SendCommand" and RequestParameters has "art18-")
+     or (EventSource == "ec2.amazonaws.com" and UserAgent has "artx")
+| project TimeGenerated, EventName, UserIdentityArn, SourceIpAddress, UserAgent, RequestParameters

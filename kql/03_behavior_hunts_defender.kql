@@ -1,0 +1,144 @@
+// ============================================================================================
+// ARTEX / agentic-intrusion BEHAVIOR hunts - Microsoft Defender XDR Advanced Hunting
+// IOCs rotate in days. These look for what the agent has to do no matter where it's hosted.
+// Run each block separately. TLP:CLEAR. Tune thresholds to your environment.
+// ============================================================================================
+
+
+// --- B1. Outbound beaconing: regular check-ins to a rare public IP ---------------------------
+// The planner runs on the attacker's box; the implant still has to ask for its next task.
+// Low jitter + low fan-in (few of your hosts talk to it) = worth a look.
+let lookback = 1d;
+let minConns = 20;
+let maxJitter = 0.25;      // stdev/mean of the gap between connections
+let maxFanIn = 3;          // how many of your devices talk to that IP
+let Conns = DeviceNetworkEvents
+    | where Timestamp > ago(lookback)
+    | where ActionType == "ConnectionSuccess" and RemoteIPType == "Public"
+    | project Timestamp, DeviceId, DeviceName, RemoteIP, RemotePort, InitiatingProcessFileName;
+let FanInByIP = Conns | summarize FanIn = dcount(DeviceId) by RemoteIP;
+Conns
+| extend Key = strcat(DeviceId, "|", RemoteIP, "|", RemotePort)
+| sort by Key asc, Timestamp asc
+| extend PrevTs = prev(Timestamp), PrevKey = prev(Key)
+| where PrevKey == Key
+| extend Gap = datetime_diff("second", Timestamp, PrevTs)
+| where Gap > 1
+| summarize Conns = count() + 1, MeanGap = avg(Gap), StdGap = stdev(Gap),
+            FirstSeen = min(Timestamp), LastSeen = max(Timestamp),
+            Procs = make_set(InitiatingProcessFileName, 5)
+            by DeviceName, RemoteIP, RemotePort
+| where Conns >= minConns
+| extend Jitter = round(StdGap / MeanGap, 3), EverySeconds = round(MeanGap, 0)
+| join kind=inner FanInByIP on RemoteIP
+| where Jitter <= maxJitter and FanIn <= maxFanIn
+| project DeviceName, RemoteIP, RemotePort, Conns, EverySeconds, Jitter, FanIn, Procs, FirstSeen, LastSeen
+| order by Jitter asc
+
+
+// --- B2. Machine-speed recon: many distinct recon commands from one parent in one minute ------
+// CrowdStrike saw ARTEX sequences of 27 events in 23 seconds. Humans don't type that fast.
+let ReconBins = dynamic(["whoami.exe","net.exe","net1.exe","nltest.exe","ipconfig.exe","systeminfo.exe",
+    "tasklist.exe","quser.exe","qwinsta.exe","arp.exe","route.exe","netstat.exe","hostname.exe",
+    "dsquery.exe","setspn.exe","klist.exe","wmic.exe","nslookup.exe","reg.exe","sc.exe","cmdkey.exe"]);
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where FileName in~ (ReconBins)
+| summarize Cmds = dcount(ProcessCommandLine), Bins = make_set(FileName, 20),
+            Sample = make_set(ProcessCommandLine, 10), Start = min(Timestamp), End = max(Timestamp)
+            by DeviceName, AccountName, InitiatingProcessFileName, bin(Timestamp, 1m)
+| where Cmds >= 12
+| extend Seconds = datetime_diff("second", End, Start)
+| order by Cmds desc
+
+
+// --- B3. ARTEX host markers published by CrowdStrike (VAPOR PANDA) ---------------------------
+// artx/artex strings in command lines and the C:\ProgramData\artx5v\ working directory.
+union
+(DeviceProcessEvents
+ | where Timestamp > ago(30d)
+ | where ProcessCommandLine matches regex @"(?i)(\bartx|\bartex\b|artx5v|\bart18-)"
+    or FolderPath has @"\ProgramData\artx5v\"
+ | project Timestamp, Source = "process", DeviceName, AccountName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessFileName),
+(DeviceFileEvents
+ | where Timestamp > ago(30d)
+ | where FolderPath has @"\ProgramData\artx5v\"
+ | project Timestamp, Source = "file", DeviceName, AccountName = InitiatingProcessAccountName, FileName, FolderPath,
+           ProcessCommandLine = InitiatingProcessCommandLine, InitiatingProcessFileName)
+| order by Timestamp desc
+
+
+// --- B4. BLOODALCHEMY side-load: svchost.exe outside System32 loading graphics-hook DLL -------
+// VAPOR PANDA renamed a legit GameHook binary to svchost.exe to load graphics-hook-filter64.dll.
+union
+(DeviceImageLoadEvents
+ | where Timestamp > ago(30d)
+ | where FileName =~ "graphics-hook-filter64.dll"
+    or SHA256 == "3fb5a9fb3e2cb1d6208966bd4e55d10282d19c7250d827efa560463d60a12ee4"
+ | where not(InitiatingProcessFolderPath has_any (@"\obs-studio\", @"\Steam\"))   // tune for legit OBS/game hooks
+ | project Timestamp, Hit = "dll-load", DeviceName, Process = InitiatingProcessFolderPath, Detail = FolderPath, SHA256),
+(DeviceProcessEvents
+ | where Timestamp > ago(30d)
+ | where FileName =~ "svchost.exe"
+ | where not(FolderPath startswith @"C:\Windows\System32\" or FolderPath startswith @"C:\Windows\SysWOW64\")
+ | project Timestamp, Hit = "svchost-outside-system32", DeviceName, Process = FolderPath, Detail = ProcessCommandLine, SHA256)
+| order by Timestamp desc
+
+
+// --- B5. Sensor-coverage inventory: same account listing processes / security folders on many hosts
+// The VAPOR PANDA operator told the agents to find Windows boxes without Falcon via tasklist and
+// folder listings. One account doing that across lots of machines in an hour is the tell.
+let SecFolders = dynamic(["CrowdStrike","Windows Defender","SentinelOne","Carbon Black","Cylance","Sophos","Trend Micro","Elastic"]);
+DeviceProcessEvents
+| where Timestamp > ago(7d)
+| where (FileName =~ "tasklist.exe")
+     or (FileName in~ ("cmd.exe","powershell.exe","pwsh.exe") and ProcessCommandLine has_any ("dir ","Get-ChildItem","ls ") and ProcessCommandLine has_any (SecFolders))
+     or (FileName =~ "sc.exe" and ProcessCommandLine has_any ("csagent","sense","windefend","sentinelagent"))
+| where InitiatingProcessFileName in~ ("wmiprvse.exe","wsmprovhost.exe","winrshost.exe","services.exe","psexesvc.exe","cmd.exe","powershell.exe")
+| summarize Hosts = dcount(DeviceName), HostList = make_set(DeviceName, 25), Cmds = make_set(ProcessCommandLine, 10)
+            by AccountName, bin(Timestamp, 1h)
+| where Hosts >= 5
+| order by Hosts desc
+
+
+// --- B6. Kerberoasting: RC4 service tickets to many SPNs from one account ---------------------
+// Needs Defender for Identity (IdentityLogonEvents / IdentityQueryEvents). See 04_sentinel for raw 4769.
+IdentityQueryEvents
+| where Timestamp > ago(7d)
+| where ActionType == "LDAP query" and QueryTarget has "servicePrincipalName"
+| summarize Queries = count(), Targets = make_set(QueryTarget, 10) by AccountName, DeviceName, bin(Timestamp, 15m)
+| where Queries >= 5
+
+
+// --- B7. DCSync from something that isn't a domain controller --------------------------------
+IdentityDirectoryEvents
+| where Timestamp > ago(30d)
+| where ActionType == "Directory Services replication"
+| project Timestamp, AccountName, AccountDomain, DeviceName, DestinationDeviceName, IPAddress, AdditionalFields
+// Every row here from a non-DC source host is a stop-what-you're-doing event.
+
+
+// --- B8. LSASS dumping via living-off-the-land -----------------------------------------------
+DeviceProcessEvents
+| where Timestamp > ago(30d)
+| where (ProcessCommandLine has "comsvcs" and ProcessCommandLine has "MiniDump")
+     or (FileName in~ ("procdump.exe","procdump64.exe") and ProcessCommandLine has "lsass")
+     or (ProcessCommandLine has_all ("sekurlsa", "logonpasswords"))
+     or (ProcessCommandLine matches regex @"(?i)rundll32.*comsvcs\.dll.*#\+?24")
+| project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName
+
+
+// --- B9. Web/app server pulling tools with curl / wget / netcat (Storm-3358 tradecraft) --------
+// Microsoft saw ARTEX agents use curl and netcat to drop WISP, vshell and AdaptixC2 on compromised
+// web servers. Parent = the web stack is the tell.
+DeviceProcessEvents
+| where Timestamp > ago(14d)
+| where FileName in~ ("curl","wget","nc","ncat","netcat","busybox","python3","python","perl")
+| where InitiatingProcessFileName in~ ("php-fpm","php","httpd","apache2","nginx","java","node","tomcat","w3wp.exe","sh","bash","dash")
+| where InitiatingProcessAccountName in~ ("www-data","apache","nginx","tomcat","nobody","iis apppool\\defaultapppool")
+     or InitiatingProcessParentFileName in~ ("php-fpm","httpd","apache2","nginx","java","node","w3wp.exe")
+| where ProcessCommandLine matches regex @"(https?://)?\d{1,3}(\.\d{1,3}){3}"
+     or ProcessCommandLine has_any ("| sh", "|sh", "| bash", "|bash", "chmod +x", "/tmp/", "/dev/shm/", "-e /bin/sh", "-e /bin/bash")
+| project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessParentFileName,
+          InitiatingProcessFileName, FileName, ProcessCommandLine
+| order by Timestamp desc
