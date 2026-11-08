@@ -4,6 +4,8 @@
 
 Offensive AI agent frameworks (ARTEX, CyberStrikeAI, PentAGI and others) are in real intrusions now. The agent is new. The traffic isn't. Planning happens on the attacker's server, execution happens on your network, and the implant still has to call home. This pack gives you published indicators in formats your tools already eat, plus behavior hunts that keep working after the IPs rotate.
 
+> **New here? Start with the [Hunt & Response Playbook](docs/PLAYBOOK.md).** It covers what to check before you hunt, the order to run things in, what each hit means, and what to do in the first hours after one.
+
 ## What's in here
 
 | Path | What it is | Drop it into |
@@ -23,6 +25,7 @@ Offensive AI agent frameworks (ARTEX, CyberStrikeAI, PentAGI and others) are in 
 | `kql/03_behavior_hunts_defender.kql` | 9 behavior hunts: beaconing, machine-speed recon, ARTEX host markers, BLOODALCHEMY side-load, EDR-coverage inventory, Kerberoast, DCSync, LSASS, web servers pulling tools | Defender XDR |
 | `kql/04_identity_and_dc_hunts_sentinel.kql` | Raw 4769/4662, spray-then-success, SP credential abuse, AWS ARTEX markers | Sentinel |
 | `build.py` | Regenerates every feed, rule and IOC query from `iocs.csv` | Edit the CSV, run this |
+| `docs/PLAYBOOK.md` | Pre-hunt checklist, run order, hit severity table, false positives, first-hours response | Your team |
 
 ## Quick start (pick your lane)
 
@@ -76,3 +79,18 @@ Censys counted 1,465 internet-exposed ARTEX consoles as of Nov 4, 2026, with rou
 - `212.11.64.250` (CyberStrikeAI) was last seen running the tool on Jan 30, 2026. Treat as historical.
 - Behavior rules are hunting-grade. Expect noise until you scope `$HOME_NET`, `$HTTP_SERVERS` and the server subnets in `artex_intel.zeek`.
 - KQL was reviewed against the published table schemas but not executed against a live tenant. If a column name differs in yours, it's a one-word fix. PRs welcome.
+
+## Need a hand?
+
+Running a hunt like this is straightforward when you have the logging, the sensor coverage and the time. Most teams are missing at least one.
+
+The SDS engineering team does **Threat Exposure & Defense Engineering**. For agentic threats that means:
+
+- **Hunt sweep:** we run this pack and our own behavior analytics across your firewall, NDR, EDR and identity logs, and tell you what we found and what it means
+- **Visibility gaps:** where an agent could operate without you seeing it, starting with egress logging, EDR coverage and domain controller auditing
+- **Detection engineering:** deploy and tune these rules and queries for your environment so they alert on real activity, not noise
+- **Incident support:** if you already have a hit, help with scoping, containment and credential rotation
+
+Based in South Florida, working nationally. **[sdsitgroup.com](https://www.sdsitgroup.com)** · (754) 357-8179
+
+The pack stays free either way. If it helped you, a ⭐ helps other defenders find it.
