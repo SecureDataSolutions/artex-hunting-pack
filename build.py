@@ -72,7 +72,7 @@ let lookback = 30d;
 let BlockIPs = dynamic([
     {kql_list(block_ips)}
 ]);
-let HuntOnlyIPs = dynamic([   // VPN exits: only meaningful Oct 15-16 2026 with ConnectWise app context
+let HuntOnlyIPs = dynamic([   // Do not block. VPN exits (only meaningful Oct 15-16 2026 with ConnectWise app context) and unattributed scan-observed ARTEX hosts; see iocs.csv context
     {kql_list(hunt_ips)}
 ]);
 let IOCDomains = dynamic([
