@@ -11,9 +11,10 @@ Offensive AI agent frameworks (ARTEX, CyberStrikeAI, PentAGI and others) are in 
 | Path | What it is | Drop it into |
 |---|---|---|
 | `iocs.csv` | Every indicator with source, campaign, confidence, first/last seen and a block vs. hunt-only action | Anything. This is the source of truth |
-| `feeds/edl_block_ipv4.txt` | 26 IPs, one per line | Palo Alto EDL, FortiGate External Threat Feed, Check Point Custom Intelligence Feed, Cisco FMC Security Intelligence |
+| `feeds/edl_block_ipv4.txt` | 45 single IPs plus 22 CIDR blocks (250 addresses in two Check Point ARTEX C&C ranges), one per line | Palo Alto EDL, FortiGate External Threat Feed, Cisco FMC Security Intelligence |
+| `feeds/edl_block_ipv4_ranges.txt` | Same block list, with the CIDR blocks written as first-last ranges (`38.11.173.1-38.11.173.125`) | Check Point Custom Intelligence Feed (its docs list hyphen ranges, not CIDR) or any feed that takes ranges |
 | `feeds/edl_block_domains.txt` | BLOODALCHEMY C2 domains | DNS firewall / RPZ, proxy, URL EDL |
-| `feeds/hunt_only_ipv4.txt` | Commercial VPN exits. **Do not block.** Only meaningful Oct 15–16, 2026 with ConnectWise app context | SIEM lookups |
+| `feeds/hunt_only_ipv4.txt` | 23 IPs. **Do not block.** Commercial VPN exits (only meaningful Oct 15–16, 2026 with ConnectWise app context) and unattributed scan-observed ARTEX hosts | SIEM lookups |
 | `feeds/sha256.txt` | BLOODALCHEMY loader, payload and side-load host | EDR custom IOCs |
 | `feeds/artex_intel.dat` | Zeek Intel framework file | Zeek / Security Onion / Corelight |
 | `suricata/artex_ioc.rules` | IP reputation (both directions), DNS and TLS SNI for the IOCs | Suricata 7+ (validated: 16 rules load, 0 fail) |
@@ -24,7 +25,7 @@ Offensive AI agent frameworks (ARTEX, CyberStrikeAI, PentAGI and others) are in 
 | `kql/02_ioc_hunt_sentinel_asim.kql` | Same IOCs across every ASIM network source (firewalls, NSG, Zeek…) | Sentinel |
 | `kql/03_behavior_hunts_defender.kql` | 9 behavior hunts: beaconing, machine-speed recon, ARTEX host markers, BLOODALCHEMY side-load, EDR-coverage inventory, Kerberoast, DCSync, LSASS, web servers pulling tools | Defender XDR |
 | `kql/04_identity_and_dc_hunts_sentinel.kql` | Raw 4769/4662, spray-then-success, SP credential abuse, AWS ARTEX markers | Sentinel |
-| `build.py` | Regenerates every feed, rule and IOC query from `iocs.csv` | Edit the CSV, run this |
+| `build.py` | Regenerates every feed, rule and IOC query from `iocs.csv`. Types: `ipv4`, `ipv4_range` (CIDR, or a first-last range that is converted to the exact CIDR cover), `domain`, `sha256`, `user_agent` | Edit the CSV, run this |
 | `docs/PLAYBOOK.md` | Pre-hunt checklist, run order, hit severity table, false positives, first-hours response | Your team |
 
 ## Quick start (pick your lane)
