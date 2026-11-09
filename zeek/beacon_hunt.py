@@ -74,12 +74,43 @@ def score_pair(times, sizes, window):
     return total, round(interval, 3), round(size, 3), round(persistence, 3), round(d_med, 1)
 
 
+class IocTable(dict):
+    """Exact IPs as dict keys, plus ipv4_range rows (CIDR or first-last) matched by containment."""
+
+    def __init__(self):
+        super().__init__()
+        self.nets = []
+
+    def get(self, ip, default=None):
+        if dict.__contains__(self, ip):
+            return dict.get(self, ip)
+        try:
+            a = ipaddress.ip_address(ip)
+        except ValueError:
+            return default
+        for net, label in self.nets:
+            if a in net:
+                return label
+        return default
+
+    def __contains__(self, ip):
+        return self.get(ip) is not None
+
+
 def load_iocs(path):
-    iocs = {}
+    iocs = IocTable()
     if path and Path(path).exists():
         for r in csv.DictReader(open(path, newline="")):
+            label = f'{r["campaign"]} / {r["category"]}'
             if r["type"] == "ipv4":
-                iocs[r["indicator"]] = f'{r["campaign"]} / {r["category"]}'
+                iocs[r["indicator"]] = label
+            elif r["type"] == "ipv4_range":
+                v = r["indicator"].strip()
+                if "-" in v:
+                    first, last = (ipaddress.IPv4Address(x.strip()) for x in v.split("-", 1))
+                    iocs.nets.extend((n, label) for n in ipaddress.summarize_address_range(first, last))
+                else:
+                    iocs.nets.append((ipaddress.IPv4Network(v, strict=True), label))
     return iocs
 
 
