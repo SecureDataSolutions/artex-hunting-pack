@@ -11,10 +11,10 @@ Offensive AI agent frameworks (ARTEX, CyberStrikeAI, PentAGI and others) are in 
 | Path | What it is | Drop it into |
 |---|---|---|
 | `iocs.csv` | Every indicator with source, campaign, confidence, first/last seen and a block vs. hunt-only action | Anything. This is the source of truth |
-| `feeds/edl_block_ipv4.txt` | 45 single IPs plus 22 CIDR blocks (250 addresses in two Check Point ARTEX C&C ranges), one per line | Palo Alto EDL, FortiGate External Threat Feed, Cisco FMC Security Intelligence |
+| `feeds/edl_block_ipv4.txt` | 48 single IPs plus 22 CIDR blocks (250 addresses in two Check Point ARTEX C&C ranges), one per line | Palo Alto EDL, FortiGate External Threat Feed, Cisco FMC Security Intelligence |
 | `feeds/edl_block_ipv4_ranges.txt` | Same block list, with the CIDR blocks written as first-last ranges (`38.11.173.1-38.11.173.125`) | Check Point Custom Intelligence Feed (its docs list hyphen ranges, not CIDR) or any feed that takes ranges |
 | `feeds/edl_block_domains.txt` | BLOODALCHEMY C2 domains | DNS firewall / RPZ, proxy, URL EDL |
-| `feeds/hunt_only_ipv4.txt` | 23 IPs. **Do not block.** Commercial VPN exits (only meaningful Oct 15–16, 2026 with ConnectWise app context) and unattributed scan-observed ARTEX hosts | SIEM lookups |
+| `feeds/hunt_only_ipv4.txt` | 38 IPs. **Do not block.** Commercial VPN exits (only meaningful Oct 15–16, 2026 with ConnectWise app context), a Tor exit, unattributed scan-observed ARTEX hosts, and sources published for hunting only (Datadog, Unit 42) | SIEM lookups |
 | `feeds/sha256.txt` | BLOODALCHEMY loader, payload and side-load host | EDR custom IOCs |
 | `feeds/artex_intel.dat` | Zeek Intel framework file | Zeek / Security Onion / Corelight |
 | `suricata/artex_ioc.rules` | IP reputation (both directions), DNS and TLS SNI for the IOCs | Suricata 7+ (validated: 16 rules load, 0 fail) |
@@ -72,6 +72,9 @@ Censys counted 1,465 internet-exposed ARTEX consoles as of Nov 4, 2026, with rou
 - Microsoft: [AI-driven, large-scale nation-state campaign using ARTEX enables supply chain compromise](https://www.microsoft.com/en-us/security/blog/2026/10/21/storm-0940-uses-artex-agentic-ai-connectwise-supply-chain-compromise/) (Oct 21, 2026)
 - Microsoft: [ARTEX abuse expands as cybercriminals target financial sector](https://www.microsoft.com/en-us/security/blog/2026/11/06/artex-abuse-expands-as-cybercriminals-target-financial-sector/) (Nov 6, 2026)
 - Censys: *ARTEX: Agentic Asbestos* (Nov 5, 2026), via [coverage](https://letsdatascience.com/news/censys-finds-1465-exposed-hosts-running-artex-ai-pentesting-58bf3ec9)
+- Microsoft: [Threat actors use agentic AI tooling to find and abuse exposed secrets](https://www.microsoft.com/en-us/security/blog/2026/11/05/threat-actors-use-agentic-ai-tooling-to-find-and-abuse-exposed-secrets/) (Nov 5, 2026)
+- Datadog Security Labs: [On the hunt for ARTEX: understanding agentic attacks in AWS environments](https://securitylabs.datadoghq.com/articles/artex-agentic-attacks-aws-environments/) (Nov 9, 2026)
+- Palo Alto Unit 42: [Activity using ARTEX agentic AI](https://github.com/PaloAltoNetworks/Unit42-timely-threat-intel/blob/main/2026-10-30-activity-using-ARTEX-agentic-AI.txt) (Oct 30, 2026), cited in [ARTEX and AI-Powered Red Teaming Tools](https://unit42.paloaltonetworks.com/artex-and-ai-powered-red-teaming-tools/) (Nov 11, 2026)
 - Team Cymru CyberStrikeAI findings, via [BleepingComputer](https://www.bleepingcomputer.com/news/security/cyberstrikeai-tool-adopted-by-hackers-for-ai-powered-attacks/)
 
 ## Known caveats
