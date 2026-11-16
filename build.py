@@ -98,11 +98,13 @@ rules.append(f'alert ip $HOME_NET any -> [{ip_list}] any (msg:"ARTEX-HUNT outbou
 rules.append(f'alert ip [{ip_list}] any -> $HOME_NET any (msg:"ARTEX-HUNT inbound from published ARTEX/CyberStrikeAI infrastructure"; '
              f'threshold:type limit, track by_dst, count 1, seconds 3600; classtype:attempted-recon; '
              f'metadata:created_at 2026_11_08, tlp clear; sid:{sid}; rev:1;)'); sid += 1
+domain_campaign = {r["indicator"]: r["campaign"].replace('"', "").replace(";", ",")
+                   for r in rows if r["type"] == "domain"}
 for d in block_domains:
-    rules.append(f'alert dns $HOME_NET any -> any any (msg:"ARTEX-HUNT DNS query for BLOODALCHEMY C2 {d}"; '
+    rules.append(f'alert dns $HOME_NET any -> any any (msg:"ARTEX-HUNT DNS query for {domain_campaign[d]} domain {d}"; '
                  f'dns.query; dotprefix; content:".{d}"; endswith; nocase; classtype:trojan-activity; '
                  f'metadata:created_at 2026_11_08, tlp clear; sid:{sid}; rev:1;)'); sid += 1
-    rules.append(f'alert tls $HOME_NET any -> $EXTERNAL_NET any (msg:"ARTEX-HUNT TLS SNI BLOODALCHEMY C2 {d}"; '
+    rules.append(f'alert tls $HOME_NET any -> $EXTERNAL_NET any (msg:"ARTEX-HUNT TLS SNI {domain_campaign[d]} domain {d}"; '
                  f'tls.sni; dotprefix; content:".{d}"; endswith; nocase; classtype:trojan-activity; '
                  f'metadata:created_at 2026_11_08, tlp clear; sid:{sid}; rev:1;)'); sid += 1
 (HERE / "suricata" / "artex_ioc.rules").write_text("\n".join(rules) + "\n")

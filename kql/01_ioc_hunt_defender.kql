@@ -26,11 +26,13 @@ let BlockIPs = dynamic([
     "103.122.245.219",
     "103.248.148.84",
     "104.168.112.237",
+    "112.121.185.218",
     "124.155.252.63",
     "144.172.64.60",
     "144.172.64.99",
     "144.172.64.128",
     "154.201.79.246",
+    "156.240.109.26",
     "178.15.54.129",
     "178.16.54.129",
     "192.121.47.20",
@@ -44,6 +46,12 @@ let BlockIPs = dynamic([
     "199.19.95.66",
     "199.19.95.67",
     "199.19.95.68",
+    "202.160.76.153",
+    "202.160.76.154",
+    "202.160.76.155",
+    "202.160.76.156",
+    "202.160.76.157",
+    "202.160.76.174",
     "203.160.133.172",
     "204.44.66.81",
     "205.214.59.31",
@@ -100,13 +108,24 @@ let HuntOnlyIPs = dynamic([   // Do not block. VPN exits (only meaningful Oct 15
     "45.87.53.14",
     "45.87.53.3",
     "45.87.53.4",
-    "45.87.53.6"
+    "45.87.53.6",
+    "49.158.237.136"
 ]);
 let IOCDomains = dynamic([
+    "888.bossjy.kdns.fr",
+    "attacker-collector.com",
+    "boss.jytian.cc.cd",
+    "c.xs1.ccwu.cc",
+    "gdp.gasjy.kdns.fr",
+    "gds.gasjy.kdns.fr",
     "nginxmysql.com",
     "sqlserver-sqlite.com",
+    "ssh.gputw.ai",
+    "update.pentagi.com",
+    "vps.xs1.ccwu.cc",
     "www.ddduuuppp.com",
-    "xcai.pro"
+    "xcai.pro",
+    "xss.xs1.ccwu.cc"
 ]);
 let Hashes = dynamic([
     "364251838edfcf5ef1107fa692da3c5bd9a540482449f645992830134bf807ab",
