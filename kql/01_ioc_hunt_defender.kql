@@ -88,14 +88,21 @@ let HuntOnlyIPs = dynamic([   // Do not block. VPN exits (only meaningful Oct 15
     "108.165.147.226",
     "110.42.215.163",
     "111.68.4.13",
+    "118.107.47.11",
+    "130.94.31.86",
+    "149.88.85.20",
     "154.12.86.207",
+    "156.251.11.39",
     "181.41.194.136",
     "187.15.88.186",
     "187.15.89.186",
     "187.15.90.217",
     "192.210.193.156",
+    "202.95.14.60",
     "203.195.243.103",
     "206.187.215.173",
+    "212.129.221.26",
+    "23.248.226.250",
     "45.87.53.10",
     "45.87.53.14",
     "45.87.53.3",
@@ -103,15 +110,19 @@ let HuntOnlyIPs = dynamic([   // Do not block. VPN exits (only meaningful Oct 15
     "45.87.53.6"
 ]);
 let IOCDomains = dynamic([
+    "direct.xcai.pro",
+    "fofoapi.com",
     "nginxmysql.com",
     "sqlserver-sqlite.com",
+    "u6ud2s.dnslog.cn",
     "www.ddduuuppp.com",
     "xcai.pro"
 ]);
 let Hashes = dynamic([
     "364251838edfcf5ef1107fa692da3c5bd9a540482449f645992830134bf807ab",
     "3fb5a9fb3e2cb1d6208966bd4e55d10282d19c7250d827efa560463d60a12ee4",
-    "49fe70419fd19b81ca8d730a6ef7c1ec71b681d60b390761070d42686c7d2068"
+    "49fe70419fd19b81ca8d730a6ef7c1ec71b681d60b390761070d42686c7d2068",
+    "d5070f52262effe216b840711343bff8f2787f39208d887d8dfd9c673f8d1573"
 ]);
 union
 (
