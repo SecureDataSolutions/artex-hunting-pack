@@ -72,6 +72,8 @@ Censys counted 1,465 internet-exposed ARTEX consoles as of Nov 4, 2026, with rou
 - Microsoft: [AI-driven, large-scale nation-state campaign using ARTEX enables supply chain compromise](https://www.microsoft.com/en-us/security/blog/2026/10/21/storm-0940-uses-artex-agentic-ai-connectwise-supply-chain-compromise/) (Oct 21, 2026)
 - Microsoft: [ARTEX abuse expands as cybercriminals target financial sector](https://www.microsoft.com/en-us/security/blog/2026/11/06/artex-abuse-expands-as-cybercriminals-target-financial-sector/) (Nov 6, 2026)
 - Censys: *ARTEX: Agentic Asbestos* (Nov 5, 2026), via [coverage](https://letsdatascience.com/news/censys-finds-1465-exposed-hosts-running-artex-ai-pentesting-58bf3ec9)
+- Amazon Threat Intelligence: [Amazon Threat Intelligence observes threat actors running cybercrime campaigns with ARTEX AI agents](https://aws.amazon.com/blogs/security/amazon-threat-intelligence-observes-threat-actors-running-cybercrime-campaigns-with-artex-ai-agents/) (Nov 13, 2026)
+- Amazon Threat Intelligence: [Chinese-nexus actor's Cairn AI agents found a zero-day on their own](https://aws.amazon.com/blogs/security/chinese-nexus-actors-cairn-ai-agents-found-a-zero-day-on-their-own/) (Nov 20, 2026)
 - Team Cymru CyberStrikeAI findings, via [BleepingComputer](https://www.bleepingcomputer.com/news/security/cyberstrikeai-tool-adopted-by-hackers-for-ai-powered-attacks/)
 
 ## Known caveats
