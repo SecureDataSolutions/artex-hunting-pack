@@ -11,13 +11,13 @@ Offensive AI agent frameworks (ARTEX, CyberStrikeAI, PentAGI and others) are in 
 | Path | What it is | Drop it into |
 |---|---|---|
 | `iocs.csv` | Every indicator with source, campaign, confidence, first/last seen and a block vs. hunt-only action | Anything. This is the source of truth |
-| `feeds/edl_block_ipv4.txt` | 45 single IPs plus 22 CIDR blocks (250 addresses in two Check Point ARTEX C&C ranges), one per line | Palo Alto EDL, FortiGate External Threat Feed, Cisco FMC Security Intelligence |
+| `feeds/edl_block_ipv4.txt` | 56 single IPs plus 22 CIDR blocks (250 addresses in two Check Point ARTEX C&C ranges), one per line | Palo Alto EDL, FortiGate External Threat Feed, Cisco FMC Security Intelligence |
 | `feeds/edl_block_ipv4_ranges.txt` | Same block list, with the CIDR blocks written as first-last ranges (`38.11.173.1-38.11.173.125`) | Check Point Custom Intelligence Feed (its docs list hyphen ranges, not CIDR) or any feed that takes ranges |
-| `feeds/edl_block_domains.txt` | BLOODALCHEMY C2 domains | DNS firewall / RPZ, proxy, URL EDL |
-| `feeds/hunt_only_ipv4.txt` | 23 IPs. **Do not block.** Commercial VPN exits (only meaningful Oct 15–16, 2026 with ConnectWise app context) and unattributed scan-observed ARTEX hosts | SIEM lookups |
+| `feeds/edl_block_domains.txt` | Published BLOODALCHEMY and BOSSAI domains | DNS firewall / RPZ, proxy, URL EDL |
+| `feeds/hunt_only_ipv4.txt` | 59 IPs. **Do not block.** Commercial VPN exits (only meaningful Oct 15–16, 2026 with ConnectWise app context) and unattributed scan-observed ARTEX hosts | SIEM lookups |
 | `feeds/sha256.txt` | BLOODALCHEMY loader, payload and side-load host | EDR custom IOCs |
 | `feeds/artex_intel.dat` | Zeek Intel framework file | Zeek / Security Onion / Corelight |
-| `suricata/artex_ioc.rules` | IP reputation (both directions), DNS and TLS SNI for the IOCs | Suricata 7+ (validated: 16 rules load, 0 fail) |
+| `suricata/artex_ioc.rules` | IP reputation (both directions), DNS and TLS SNI for the IOCs | Suricata 7+; November 25 combined rules rebuilt and structurally checked; engine load not re-tested |
 | `suricata/artex_behavior.rules` | Hunting-grade: inbound agent scanners, web servers pulling ELFs, LLM API egress from servers | Suricata 7+ |
 | `zeek/artex_intel.zeek` | Loads the intel file, notices on LLM API egress from server subnets | Zeek `local.zeek` |
 | `zeek/beacon_hunt.py` | Scores beaconing in conn.log (TSV/JSON/.gz) and flags IOC traffic. No dependencies | Any box with Python 3.8+ |
@@ -25,12 +25,12 @@ Offensive AI agent frameworks (ARTEX, CyberStrikeAI, PentAGI and others) are in 
 | `kql/02_ioc_hunt_sentinel_asim.kql` | Same IOCs across every ASIM network source (firewalls, NSG, Zeek…) | Sentinel |
 | `kql/03_behavior_hunts_defender.kql` | 9 behavior hunts: beaconing, machine-speed recon, ARTEX host markers, BLOODALCHEMY side-load, EDR-coverage inventory, Kerberoast, DCSync, LSASS, web servers pulling tools | Defender XDR |
 | `kql/04_identity_and_dc_hunts_sentinel.kql` | Raw 4769/4662, spray-then-success, SP credential abuse, AWS ARTEX markers | Sentinel |
-| `build.py` | Regenerates every feed, rule and IOC query from `iocs.csv`. Types: `ipv4`, `ipv4_range` (CIDR, or a first-last range that is converted to the exact CIDR cover), `domain`, `sha256`, `user_agent` | Edit the CSV, run this |
+| `build.py` | Regenerates every feed, rule and IOC query from `iocs.csv`. Certificate fingerprints, Docker image names and user agents remain reference rows in the CSV. Types: `ipv4`, `ipv4_range` (CIDR, or a first-last range that is converted to the exact CIDR cover), `domain`, `sha256`, `user_agent` | Edit the CSV, run this |
 | `docs/PLAYBOOK.md` | Pre-hunt checklist, run order, hit severity table, false positives, first-hours response | Your team |
 
 ## Quick start (pick your lane)
 
-**Firewall team (15 minutes).** Point your EDL / external feed at `edl_block_ipv4.txt` and `edl_block_domains.txt`. Block **inbound and outbound**, and log every hit. Then search the last 30 days of firewall logs for the same list with action = allow. An allow is an incident. A deny is a good day.
+**Firewall team (15 minutes).** Point your EDL / external feed at `edl_block_ipv4.txt` and `edl_block_domains.txt`. Block **inbound and outbound**, and log every hit. Then search the last 30 days of firewall logs for the same list with action = allow. Investigate allowed matches in context. Record denied matches and verify the indicator is still relevant.
 
 **NDR / Zeek / Security Onion.** Load `artex_intel.dat`, drop both Suricata rule files in, then run the beacon scorer over yesterday's logs:
 
@@ -65,6 +65,10 @@ Microsoft says it plainly: these actors rotate through proxies and VPNs, and an 
 
 Censys counted 1,465 internet-exposed ARTEX consoles as of Nov 4, 2026, with roughly 650 in two identically configured hosting blocks, and noted some belong to authorized testers. If you run ARTEX or similar for red teaming, it does not need to be internet-facing. Scan your own ranges. The CrowdStrike-linked server exposed its open directory on port 18899, and identical HTTP fingerprints (ETag / Content-Length) across hosts point to a shared image or template.
 
+## November 25 update
+
+Combined PRs #2–5, adding 81 source-attributed rows. Indicator dates describe historical observations, not proof that an address is malicious today. Review relevance before enabling automatic blocks. Shared infrastructure remains hunt-only. User-agent, certificate and Docker-image rows are reference material in the CSV and are not automatically turned into detection rules.
+
 ## Sources
 
 - CrowdStrike: [Unknown Threat Actor Uses AI-Driven ARTEX to Target South Korean Finance](https://www.crowdstrike.com/en-us/blog/unknown-threat-actor-uses-artex-to-target-south-korean-finance/) (Oct 7, 2026)
@@ -73,6 +77,15 @@ Censys counted 1,465 internet-exposed ARTEX consoles as of Nov 4, 2026, with rou
 - Microsoft: [ARTEX abuse expands as cybercriminals target financial sector](https://www.microsoft.com/en-us/security/blog/2026/11/06/artex-abuse-expands-as-cybercriminals-target-financial-sector/) (Nov 6, 2026)
 - Censys: *ARTEX: Agentic Asbestos* (Nov 5, 2026), via [coverage](https://letsdatascience.com/news/censys-finds-1465-exposed-hosts-running-artex-ai-pentesting-58bf3ec9)
 - Team Cymru CyberStrikeAI findings, via [BleepingComputer](https://www.bleepingcomputer.com/news/security/cyberstrikeai-tool-adopted-by-hackers-for-ai-powered-attacks/)
+
+- https://aws.amazon.com/blogs/security/amazon-threat-intelligence-observes-threat-actors-running-cybercrime-campaigns-with-artex-ai-agents/
+- https://aws.amazon.com/blogs/security/chinese-nexus-actors-cairn-ai-agents-found-a-zero-day-on-their-own/
+- https://github.com/PaloAltoNetworks/Unit42-timely-threat-intel/blob/main/2026-10-30-activity-using-ARTEX-agentic-AI.txt
+- https://securitylabs.datadoghq.com/articles/artex-agentic-attacks-aws-environments/
+- https://www.acronis.com/en/tru/posts/bossai-inside-the-ai-attack-mesh-that-targeted-taiwans-emergency-services/
+- https://www.elastic.co/security-labs/threat-command/agentic-offensive-frameworks-detection-artex
+- https://www.microsoft.com/en-us/security/blog/2026/11/05/threat-actors-use-agentic-ai-tooling-to-find-and-abuse-exposed-secrets/
+- https://www.sentinelone.com/blog/artex-unmasked-the-rise-of-ai-powered-artex-in-cybercrime-espionage/
 
 ## Known caveats
 
