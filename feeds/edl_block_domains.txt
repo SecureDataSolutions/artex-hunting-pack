@@ -1,9 +1,13 @@
+2ev5.newpayapp.com
 888.bossjy.kdns.fr
+api-zt.newpayapp.com
 attacker-collector.com
 boss.jytian.cc.cd
 c.xs1.ccwu.cc
+data-zt.newpayapp.com
 gdp.gasjy.kdns.fr
 gds.gasjy.kdns.fr
+newpayapp.com
 nginxmysql.com
 sqlserver-sqlite.com
 ssh.gputw.ai

@@ -101,7 +101,13 @@ rules.append(f'alert ip [{ip_list}] any -> $HOME_NET any (msg:"ARTEX-HUNT inboun
 domain_campaign = {r["indicator"]: r["campaign"].replace('"', "").replace(";", ",")
                    for r in rows if r["type"] == "domain"}
 original_domains = ["nginxmysql.com", "sqlserver-sqlite.com", "www.ddduuuppp.com"]
-ordered_domains = [d for d in original_domains if d in block_domains] + [d for d in block_domains if d not in original_domains]
+# Domains already released (in the order they got SIDs). New domains are appended after these in
+# iocs.csv order, so adding a domain never renumbers an existing rule.
+released_domains = ["888.bossjy.kdns.fr", "attacker-collector.com", "boss.jytian.cc.cd", "c.xs1.ccwu.cc",
+                    "gdp.gasjy.kdns.fr", "gds.gasjy.kdns.fr", "ssh.gputw.ai", "vps.xs1.ccwu.cc", "xss.xs1.ccwu.cc"]
+csv_order = list(dict.fromkeys(r["indicator"] for r in rows if r["type"] == "domain" and r["action"] == "block_and_hunt"))
+ordered_domains = ([d for d in original_domains + released_domains if d in block_domains]
+                   + [d for d in csv_order if d not in original_domains + released_domains])
 for d in ordered_domains:
     rules.append(f'alert dns $HOME_NET any -> any any (msg:"ARTEX-HUNT DNS query for {domain_campaign[d]} domain {d}"; '
                  f'dns.query; dotprefix; content:".{d}"; endswith; nocase; classtype:trojan-activity; '
